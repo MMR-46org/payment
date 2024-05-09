@@ -86,6 +86,8 @@ def pay(id):
         app.logger.warn('cart not valid')
         return 'cart not valid', 400
 
+
+
     # dummy call to payment gateway, hope they dont object
     try:
         req = requests.get(PAYMENT_GATEWAY)
@@ -96,6 +98,8 @@ def pay(id):
     if req.status_code != 200:
         return 'payment error', req.status_code
 
+    app.logger.info('CHECKPOINT 1')
+
     # Prometheus
     # items purchased
     item_count = countItems(cart.get('items', []))
@@ -103,9 +107,13 @@ def pay(id):
     PromMetrics['AUS'].observe(item_count)
     PromMetrics['AVS'].observe(cart.get('total', 0))
 
+    app.logger.info('CHECKPOINT 2')
+
     # Generate order id
     orderid = str(uuid.uuid4())
     queueOrder({ 'orderid': orderid, 'user': id, 'cart': cart })
+
+    app.logger.info('CHECKPOINT 3 {}'.format(orderid))
 
     # add to order history
     if not anonymous_user:
@@ -118,6 +126,8 @@ def pay(id):
             app.logger.error(err)
             return str(err), 500
 
+    app.logger.info('CHECKPOINT 4')
+
     # delete cart
     try:
         req = requests.delete('http://{cart}:{cartPort}/cart/{id}'.format(cart=CART, cartPort=CART_PORT, id=id));
@@ -127,6 +137,8 @@ def pay(id):
         return str(err), 500
     if req.status_code != 200:
         return 'order history update error', req.status_code
+
+    app.logger.info('CHECKPOINT 5')
 
     return jsonify({ 'orderid': orderid })
 
